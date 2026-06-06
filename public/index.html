@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>recteq Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>recteq</h1>
+    <div id="status-badge" class="badge disconnected">Disconnected</div>
+    <button id="monitor-btn" class="btn monitor-on">Pause</button>
+  </header>
+
+  <main>
+    <section class="temps">
+      <div class="temp-card primary">
+        <div class="label">Grill Temp</div>
+        <div class="value" id="actual">--</div>
+        <div class="unit">°F</div>
+      </div>
+      <div class="temp-card c-target">
+        <div class="label">Target</div>
+        <div class="value" id="target">--</div>
+        <div class="unit">°F</div>
+      </div>
+      <div class="temp-card c-probe-a">
+        <div class="label">Probe A</div>
+        <div class="value" id="probe-a">--</div>
+        <div class="unit">°F</div>
+      </div>
+      <div class="temp-card c-probe-b">
+        <div class="label">Probe B</div>
+        <div class="value" id="probe-b">--</div>
+        <div class="unit">°F</div>
+      </div>
+      <div class="temp-card c-wireless-1">
+        <div class="label">Wireless 1 <span class="probe-status" id="wp1-status"></span></div>
+        <div class="value" id="wp1-temp">--</div>
+        <div class="unit">°F</div>
+        <div class="battery" id="wp1-battery"></div>
+      </div>
+      <div class="temp-card c-wireless-2">
+        <div class="label">Wireless 2 <span class="probe-status" id="wp2-status"></span></div>
+        <div class="value" id="wp2-temp">--</div>
+        <div class="unit">°F</div>
+        <div class="battery" id="wp2-battery"></div>
+      </div>
+    </section>
+
+    <div id="error-bar" class="error-bar hidden"></div>
+
+    <section class="chart-section">
+      <canvas id="tempChart"></canvas>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

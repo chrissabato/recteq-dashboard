@@ -3,10 +3,12 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
+const fs = require('fs');
 const { Grill, ProbeHub } = require('./lib/grill');
 
 const PORT = process.env.PORT || 3000;
 const HISTORY_MAX = 360; // 6 hours at ~1 point/min
+const HISTORY_FILE = path.join(__dirname, 'history.json');
 
 const app = express();
 app.use(express.json());
@@ -15,8 +17,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const history = [];
-const probeHistory = [];
+function loadHistory() {
+  try {
+    const raw = fs.readFileSync(HISTORY_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    return { history: saved.history || [], probeHistory: saved.probeHistory || [] };
+  } catch (_) {
+    return { history: [], probeHistory: [] };
+  }
+}
+
+let _savePending = false;
+function saveHistory() {
+  if (_savePending) return;
+  _savePending = true;
+  setImmediate(() => {
+    _savePending = false;
+    fs.writeFile(HISTORY_FILE, JSON.stringify({ history, probeHistory }), () => {});
+  });
+}
+
+const { history: _h, probeHistory: _ph } = loadHistory();
+const history = _h;
+const probeHistory = _ph;
 
 const grill = new Grill({
   deviceId: process.env.GRILL_DEVICE_ID,
@@ -43,6 +66,7 @@ grill.on('update', (state) => {
   if (state.power) {
     history.push({ time: Date.now(), ...state });
     if (history.length > HISTORY_MAX) history.shift();
+    saveHistory();
   }
   broadcast({ type: 'update', state });
 });
@@ -55,6 +79,7 @@ probeHub.on('update', (state) => {
   if (grill.state.power) {
     probeHistory.push({ time: Date.now(), probe1: state.probe1.temp, probe2: state.probe2.temp });
     if (probeHistory.length > HISTORY_MAX) probeHistory.shift();
+    saveHistory();
   }
   broadcast({ type: 'probes', state });
 });

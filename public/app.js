@@ -134,9 +134,12 @@ function setMonitoring(active) {
   monitorBtn.textContent = active ? 'Pause' : 'Resume';
 }
 
-// WebSocket
+// Derive base path from page URL so this works under a reverse-proxy subpath.
+const base = location.pathname.endsWith('/')
+  ? location.pathname
+  : location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);
+
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-const base  = location.pathname.replace(/\/$/, '');
 const ws    = new WebSocket(`${proto}://${location.host}${base}`);
 
 ws.addEventListener('message', (evt) => {
@@ -184,7 +187,7 @@ ws.addEventListener('message', (evt) => {
 ws.addEventListener('close', () => setConnected(false));
 
 monitorBtn.addEventListener('click', () => {
-  fetch('/api/monitoring', {
+  fetch(base + 'api/monitoring', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ active: !monitoring }),

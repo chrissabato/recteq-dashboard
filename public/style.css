@@ -20,7 +20,7 @@ body {
 }
 
 @media (min-width: 1101px) {
-  html { font-size: 20px; }
+  html { font-size: 30px; }
   body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   main { flex: 1; width: 100%; max-width: none; display: flex; flex-direction: column; overflow: hidden; padding: 1.5rem 2.5rem; }
   .chart-section { flex: 1; height: auto; min-height: 0; width: 100%; }

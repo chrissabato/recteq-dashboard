@@ -38,12 +38,10 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
-header h1 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--orange);
-  text-transform: uppercase;
+.logo {
+  height: 1.5rem;
+  width: auto;
+  display: block;
 }
 
 .badge {

@@ -32,7 +32,7 @@ const chart = new Chart(ctx, {
     scales: {
       x: {
         type: 'time',
-        time: { unit: 'minute', displayFormats: { minute: 'h:mm a' } },
+        time: { displayFormats: { minute: 'h:mm a', hour: 'h a' } },
         ticks: { color: '#666', maxTicksLimit: 8 },
         grid:  { color: '#222' },
       },

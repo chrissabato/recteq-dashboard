@@ -1,5 +1,6 @@
 const statusBadge  = document.getElementById('status-badge');
 const monitorBtn   = document.getElementById('monitor-btn');
+const clearBtn     = document.getElementById('clear-btn');
 let monitoring = true;
 let lastState = {};
 const actualEl     = document.getElementById('actual');
@@ -41,7 +42,7 @@ const chart = new Chart(ctx, {
         grid:  { color: '#222' },
       },
       y: {
-        min: 50,
+        suggestedMin: 50,
         ticks: { color: '#666', callback: (v) => v + '°' },
         grid:  { color: '#222' },
       },
@@ -130,8 +131,10 @@ function setConnected(connected) {
 
 function setMonitoring(active) {
   monitoring = active;
-  monitorBtn.className = 'btn ' + (active ? 'monitor-on' : 'monitor-off');
-  monitorBtn.textContent = active ? 'Pause' : 'Resume';
+  if (monitorBtn) {
+    monitorBtn.className = 'btn ' + (active ? 'monitor-on' : 'monitor-off');
+    monitorBtn.textContent = active ? 'Pause' : 'Resume';
+  }
 }
 
 // Derive base path from page URL so this works under a reverse-proxy subpath.
@@ -186,11 +189,23 @@ ws.addEventListener('message', (evt) => {
 
 ws.addEventListener('close', () => setConnected(false));
 
-monitorBtn.addEventListener('click', () => {
-  fetch(base + 'api/monitoring', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ active: !monitoring }),
+if (monitorBtn) {
+  monitorBtn.addEventListener('click', () => {
+    fetch(base + 'api/monitoring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !monitoring }),
+    });
   });
-});
+}
+
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    if (!confirm('Clear all temperature history?')) return;
+    fetch(base + 'api/history', { method: 'DELETE' }).then(() => {
+      for (const ds of chart.data.datasets) ds.data = [];
+      chart.update('none');
+    });
+  });
+}
 

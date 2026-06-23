@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const mqtt = require('mqtt');
 const path = require('path');
 const fs = require('fs');
 const { Grill, ProbeHub } = require('./lib/grill');
@@ -67,23 +68,33 @@ grill.on('update', (state) => {
     history.push({ time: Date.now(), ...state });
     if (history.length > HISTORY_MAX) history.shift();
     saveHistory();
+    mqttPublish('recteq/history', { history, probeHistory });
   }
   broadcast({ type: 'update', state });
+  mqttPublish('recteq/grill', state);
 });
 
-grill.on('connected',    ()    => broadcast({ type: 'connected' }));
-grill.on('disconnected', ()    => broadcast({ type: 'disconnected' }));
-grill.on('error',        (err) => console.error('[grill error]', err.message));
+grill.on('connected', () => {
+  broadcast({ type: 'connected' });
+  mqttPublish('recteq/grill', grill.state);
+});
+grill.on('disconnected', () => {
+  broadcast({ type: 'disconnected' });
+  mqttPublish('recteq/grill', grill.state);
+});
+grill.on('error', (err) => console.error('[grill error]', err.message));
 
 probeHub.on('update', (state) => {
   if (grill.state.power) {
     probeHistory.push({ time: Date.now(), probe1: state.probe1.temp, probe2: state.probe2.temp });
     if (probeHistory.length > HISTORY_MAX) probeHistory.shift();
     saveHistory();
+    mqttPublish('recteq/history', { history, probeHistory });
   }
   broadcast({ type: 'probes', state });
+  mqttPublish('recteq/probes', state);
 });
-probeHub.on('error',  (err)   => console.error('[probe error]', err.message));
+probeHub.on('error', (err) => console.error('[probe error]', err.message));
 
 let monitoring = true;
 
@@ -100,7 +111,14 @@ wss.on('connection', (ws) => {
 
 // --- REST API ---
 
-app.post('/api/power', async (req, res) => {
+function localOnly(req, res, next) {
+  const ip = req.socket.remoteAddress || '';
+  const local = ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.');
+  if (!local) return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+app.post('/api/power', localOnly, async (req, res) => {
   try {
     await grill.setPower(req.body.on);
     res.json({ ok: true });
@@ -109,7 +127,7 @@ app.post('/api/power', async (req, res) => {
   }
 });
 
-app.post('/api/target', async (req, res) => {
+app.post('/api/target', localOnly, async (req, res) => {
   const temp = parseInt(req.body.temp, 10);
   if (isNaN(temp) || temp < 180 || temp > 500) {
     return res.status(400).json({ error: 'temp must be 180–500°F' });
@@ -124,7 +142,14 @@ app.post('/api/target', async (req, res) => {
 
 app.get('/api/state', (_req, res) => res.json({ grill: grill.state, probes: probeHub.state, monitoring }));
 
-app.post('/api/monitoring', async (req, res) => {
+app.delete('/api/history', localOnly, (_req, res) => {
+  history.length = 0;
+  probeHistory.length = 0;
+  saveHistory();
+  res.json({ ok: true });
+});
+
+app.post('/api/monitoring', localOnly, async (req, res) => {
   const active = Boolean(req.body.active);
   if (active === monitoring) return res.json({ ok: true, monitoring });
   monitoring = active;
@@ -136,8 +161,34 @@ app.post('/api/monitoring', async (req, res) => {
     broadcast({ type: 'disconnected' });
   }
   broadcast({ type: 'monitoring', monitoring });
+  mqttPublish('recteq/monitoring', { monitoring });
   res.json({ ok: true, monitoring });
 });
+
+// --- MQTT publishing (optional) ---
+
+let mqttClient = null;
+if (process.env.MQTT_HOST) {
+  mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
+    port: parseInt(process.env.MQTT_PORT || '8884'),
+    username: process.env.MQTT_USER,
+    password: process.env.MQTT_PASS,
+  });
+  mqttClient.on('connect', () => {
+    console.log('[mqtt] connected');
+    mqttPublish('recteq/grill', grill.state);
+    mqttPublish('recteq/probes', probeHub.state);
+    mqttPublish('recteq/history', { history, probeHistory });
+    mqttPublish('recteq/monitoring', { monitoring });
+  });
+  mqttClient.on('error', (err) => console.error('[mqtt error]', err.message));
+}
+
+function mqttPublish(topic, payload) {
+  if (mqttClient?.connected) {
+    mqttClient.publish(topic, JSON.stringify(payload), { retain: true });
+  }
+}
 
 // --- Start ---
 

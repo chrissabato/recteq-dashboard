@@ -8,7 +8,7 @@ const fs = require('fs');
 const { Grill, ProbeHub } = require('./lib/grill');
 
 const PORT = process.env.PORT || 3000;
-const HISTORY_MAX = 1440; // 24 hours at ~1 point/min
+const HISTORY_MAX = 8640; // 24 hours at 1 point/10s
 const HISTORY_FILE = path.join(__dirname, 'history.json');
 
 const app = express();
